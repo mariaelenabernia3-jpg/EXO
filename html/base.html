@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXO | Centro de Mando</title>
+    <link rel="stylesheet" href="../css/base.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+    <div class="game-container">
+        <header id="resource-bar" class="resource-bar"></header>
+        <main class="base-grid-container">
+            <div id="base-grid" class="base-grid"></div>
+        </main>
+        <aside id="info-panel" class="info-panel"></aside>
+        <footer class="footer-bar">
+            <div id="planet-name-display" class="planet-name"></div>
+            <div class="footer-buttons">
+                <!-- BOTÓN NUEVO PARA EL SIMULADOR -->
+                <button class="hud-button" data-action="open_station" data-station-type="simulator" title="Simulador de Combate">
+                    <i class='bx bxs-joystick-alt'></i>
+                    <span>Simulador</span>
+                </button>
+                <a href="menu.html" class="hud-button" title="Volver al Menú Principal">
+                    <i class='bx bx-exit'></i>
+                    <span>Volver al Menú</span>
+                </a>
+            </div>
+        </footer>
+    </div>
+    <div id="game-modal-overlay" class="game-modal-overlay hidden">
+        <div id="game-modal-content" class="game-modal-content"></div>
+    </div>
+    <script src="../js/base.js"></script>
+</body>
+</html>

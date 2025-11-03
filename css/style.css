@@ -1,0 +1,42 @@
+:root { --font-primary: 'Orbitron', sans-serif; --color-background: #020010; --color-text: #E0E0E0; --color-primary: #00BFFF; --color-secondary: #FF00FF; --color-glow: rgba(0, 191, 255, 0.7); --glass-background: rgba(10, 20, 40, 0.85); --glass-border: rgba(0, 191, 255, 0.5); }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background-color: var(--color-background); color: var(--color-text); font-family: var(--font-primary); overflow: hidden; position: relative; }
+@keyframes move-stars { from { transform: translateY(0px); } to { transform: translateY(-2000px); } }
+body::before, body::after { content: ''; position: absolute; width: 100%; height: 4000px; left: 0; top: 0; animation: move-stars linear infinite; z-index: -1; }
+body::before { background-image: radial-gradient(1px 1px at 20px 30px, #eee, transparent), radial-gradient(1px 1px at 40px 70px, #fff, transparent), radial-gradient(1px 1px at 50px 160px, #ddd, transparent), radial-gradient(2px 2px at 90px 40px, #fff, transparent), radial-gradient(1px 1px at 130px 200px, #fff, transparent), radial-gradient(1px 1px at 160px 120px, #ddd, transparent); background-size: 200px 200px; animation-duration: 200s; }
+body::after { background-image: radial-gradient(2px 2px at 30px 50px, #fff, transparent), radial-gradient(2px 2px at 100px 100px, #ddd, transparent), radial-gradient(3px 3px at 150px 80px, #fff, transparent); background-size: 150px 150px; animation-duration: 100s; }
+.hidden { display: none !important; }
+.user-auth-corner { position: absolute; top: 20px; right: 20px; z-index: 100; display: flex; align-items: center; gap: 15px; }
+.user-auth-corner button { color: var(--color-primary); text-decoration: none; font-size: 1em; font-weight: 700; cursor: pointer; transition: all 0.2s ease; background: rgba(10, 20, 40, 0.7); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 15px; font-family: var(--font-primary); display: flex; align-items: center; gap: 8px; }
+.user-auth-corner button:hover { text-shadow: 0 0 10px var(--color-glow); transform: scale(1.05); box-shadow: 0 0 15px var(--color-glow); }
+#user-info { display: flex; align-items: center; gap: 10px; color: var(--color-text); font-weight: bold; }
+#user-info i { font-size: 1.5em; }
+#user-info a { color: var(--color-text); text-decoration: none; cursor: pointer; transition: all 0.2s ease; }
+#user-info a:hover { color: var(--color-primary); text-shadow: 0 0 8px var(--color-glow); }
+#app-container { display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; padding: 15px; position: relative; z-index: 1; }
+.main-menu-container { text-align: center; }
+.game-title { font-size: 5em; font-weight: 900; text-transform: uppercase; letter-spacing: 10px; color: var(--color-text); text-shadow: 0 0 5px #fff, 0 0 10px var(--color-secondary), 0 0 20px var(--color-secondary); }
+.main-menu { margin-top: 40px; display: flex; flex-direction: column; gap: 20px; }
+.menu-btn { background: transparent; border: 2px solid var(--glass-border); color: var(--color-text); padding: 15px 40px; font-size: 1.2em; font-family: var(--font-primary); cursor: pointer; border-radius: 5px; transition: all 0.2s ease; }
+.menu-btn:hover { background: var(--color-primary); color: var(--color-background); transform: scale(1.05); box-shadow: 0 0 20px var(--color-glow); }
+.form-glass { background: var(--glass-background); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid var(--glass-border); box-shadow: 0 0 25px var(--color-glow); border-radius: 15px; }
+.auth-form { padding: 10px; }
+.auth-form h1 { font-size: 2em; margin-bottom: 20px; text-shadow: 0 0 10px var(--color-primary); }
+.input-box { position: relative; margin: 30px 0; }
+.input-box input { width: 100%; height: 50px; background: transparent; border: 2px solid var(--glass-border); border-radius: 25px; color: var(--color-text); font-size: 1em; padding: 0 20px 0 50px; font-family: var(--font-primary); transition: box-shadow 0.3s; }
+.input-box input:focus { outline: none; box-shadow: 0 0 15px var(--color-glow); }
+.input-box i { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); font-size: 1.5em; color: var(--color-primary); }
+.btn { width: 100%; height: 50px; border-radius: 25px; border: none; background: var(--color-primary); color: var(--color-background); font-family: var(--font-primary); font-size: 1.2em; font-weight: 700; cursor: pointer; transition: all 0.2s ease; text-shadow: 0 0 5px #000; margin-top: 10px; }
+.btn:hover { box-shadow: 0 0 20px var(--color-primary); transform: scale(1.02); }
+.form-switcher { text-align: center; margin-top: 25px; font-size: 0.9em; }
+.form-switcher a { color: var(--color-primary); text-decoration: none; font-weight: 700; cursor: pointer; }
+.form-switcher a:hover { text-decoration: underline; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(2, 0, 16, 0.8); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+.modal-overlay:not(.hidden) { opacity: 1; pointer-events: all; }
+.modal-content { padding: 30px; width: 95%; max-width: 500px; position: relative; transform: scale(0.95); transition: transform 0.3s ease; }
+.modal-overlay:not(.hidden) .modal-content { transform: scale(1); }
+.modal-close { position: absolute; top: 15px; right: 20px; background: none; border: none; color: var(--color-text); font-size: 2.5em; cursor: pointer; z-index: 1001; }
+.modal-title { font-size: 1.8em; margin-bottom: 30px; color: var(--color-primary); }
+.modal-body { font-size: 1em; line-height: 1.8; }
+.credits-studio { font-size: 1.5em; font-weight: 700; color: var(--color-secondary); margin-top: 20px; letter-spacing: 3px; text-shadow: 0 0 15px var(--color-secondary); }
+@media (min-width: 768px) { .game-title { font-size: 10em; } .main-menu { flex-direction: row; gap: 30px; } }
