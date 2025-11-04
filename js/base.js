@@ -1,7 +1,3 @@
-import { auth, db } from './firebase-init.js';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- BLUEPRINTS ---
     const ICONS = { credits: 'bxs-coin-stack', iron: 'bxs-cube-alt', titanium: 'bxs-layer', silicio: 'bxs-chip', agua: 'bxs-droplet', biomasa: 'bxs-leaf', 'gas_helio-3': 'bxs-cloud', 'fibra_de_carbono': 'bxs-grid-alt', polímeros: 'bxs-vial', hidrógeno: 'bxs-flame', amoníaco: 'bxs-bong', 'agua_pesada': 'bxs-battery', litio: 'bxs-car-battery', sal: 'bxs-invader', algas: 'bxs-bug-alt', 'hielo_de_metano': 'bxs-cube', nitrógeno: 'bxs-wind', xenón: 'bxs-meteor', 'minerales_raros': 'bxs-component', piezas_de_chatarra: 'bxs-wrench', default: 'bxs-diamond' };
@@ -11,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
             storage_credits: { name: "Almacén de Créditos", upgrades: [ { level: 1, cost: { credits: 200 }, cap: 5000 }, { level: 2, cost: { credits: 1000 }, cap: 20000 }, { level: 3, cost: { credits: 3000, iron: 100 }, cap: 100000 } ] },
             storage_resources: { name: "Almacén de Recursos", upgrades: [ { level: 1, cost: { credits: 800 }, cap: 1000 }, { level: 2, cost: { credits: 2500, iron: 250 }, cap: 5000 } ] },
             workshop: { name: "Taller de Naves", upgrades: [ { level: 1, cost: { credits: 2000, iron: 150 } }, { level: 2, cost: { credits: 10000, titanium: 50 } } ] },
-            marketplace: { name: "Mercado Galáctico", upgrades: [ { level: 1, cost: { credits: 1500 } } ] },
             recycler: { name: "Planta de Reciclaje", upgrades: [ { level: 1, cost: { credits: 750, iron: 25 } } ] },
             simulator: { name: "Simulador de Combate" },
             extractor: { name: "Extractor", upgrades: [ { level: 1, cost: { credits: 300 }, prod: 10 }, { level: 2, cost: { credits: 900, iron: 20 }, prod: 25 } ] }
@@ -20,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let gameState = {};
-    let currentUser = null;
     const DOM = {
         resourceBar: document.getElementById('resource-bar'),
         baseGrid: document.getElementById('base-grid'),
@@ -37,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canAfford = (cost) => Object.keys(cost).every(res => gameState.resources[formatResName(res)] >= cost[res]);
     const spendResources = (cost) => Object.keys(cost).forEach(res => { gameState.resources[formatResName(res)] -= cost[res]; });
     const closeModal = () => { DOM.gameModal.overlay.classList.add('hidden'); DOM.gameModal.content.innerHTML = ''; };
-    const saveGame = async () => { if (gameState && currentUser) { await setDoc(doc(db, 'games', currentUser.uid), gameState, { merge: true }); } };
+    const saveGame = () => { if (gameState && gameState.player) { localStorage.setItem('exoSaveData_' + gameState.player.name, JSON.stringify(gameState)); } };
 
     function renderAll() {
         renderResources();
@@ -55,16 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const resourceCap = resourceStorage ? BLUEPRINTS.buildings.storage_resources.upgrades[resourceStorage.level - 1].cap : 500;
         let totalResources = 0;
         const otherResources = {};
-        Object.keys(gameState.resources).forEach(res => {
-            if (res !== 'credits' && res !== 'piezas_de_chatarra') {
-                totalResources += gameState.resources[res];
-                otherResources[res] = gameState.resources[res];
-            }
-        });
+        Object.keys(gameState.resources).forEach(res => { if (res !== 'credits' && res !== 'piezas_de_chatarra') { totalResources += gameState.resources[res]; otherResources[res] = gameState.resources[res]; } });
         html += `<div class="resource-item" title="Almacén de Recursos"><i class='bx bxs-box'></i><span>${Math.floor(totalResources)} / ${resourceCap}</span></div>`;
-        Object.keys(otherResources).forEach(res => {
-             html += `<div class="resource-item" title="${res}"><i class='bx ${getIcon(res)}'></i><span>${Math.floor(otherResources[res])}</span></div>`;
-        });
+        Object.keys(otherResources).forEach(res => { html += `<div class="resource-item" title="${res}"><i class='bx ${getIcon(res)}'></i><span>${Math.floor(otherResources[res])}</span></div>`; });
         html += `<div class="resource-item" title="Piezas de Chatarra"><i class='bx ${getIcon('piezas_de_chatarra')}'></i><span>${Math.floor(gameState.resources.piezas_de_chatarra)}</span></div>`;
         DOM.resourceBar.innerHTML = html;
     }
@@ -131,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function upgradeBuilding(plotId) {
         const plot = gameState.buildings.find(p => p.id === plotId);
         const blueprint = BLUEPRINTS.buildings[plot.type];
-        if (!blueprint.upgrades[plot.level]) return;
+        if (!blueprint.upgrades || !blueprint.upgrades[plot.level]) return;
         const cost = blueprint.upgrades[plot.level].cost;
         if (canAfford(cost)) {
             spendResources(cost);
@@ -311,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 50);
     }
     
-    const init = async () => {
+    const init = () => {
         let player, savedData;
         try {
             const userString = localStorage.getItem('exoUser');
@@ -321,39 +308,30 @@ document.addEventListener('DOMContentLoaded', () => {
             savedData = saveDataString ? JSON.parse(saveDataString) : null;
         } catch (e) { window.location.href = 'menu.html'; return; }
 
-        if (savedData && savedData.chosenPlanet) {
+        if (savedData) {
             gameState = savedData;
         } else {
-            // Si no hay partida guardada, se crea una nueva (simplificado)
-            const chosenPlanetString = sessionStorage.getItem('exoChosenPlanet');
-            if(!chosenPlanetString){
-                alert("Error: No se encontró partida. Por favor, selecciona un planeta.");
-                window.location.href = 'selection.html';
-                return;
-            }
-            const chosenPlanet = JSON.parse(chosenPlanetString);
             gameState = {
-                player,
-                planetName: chosenPlanet.name,
-                resources: { credits: 500, piezas_de_chatarra: 0 },
-                buildings: [ { id: 1, type: "mine", level: 1 } ],
+                player: player,
+                planetName: "Colonia Alpha",
+                resources: { credits: 500, iron: 0, silicio: 0, titanium: 0, piezas_de_chatarra: 0 },
+                buildings: [
+                    { id: 1, type: "mine", level: 1 },
+                    { id: 2, type: "empty", resourceDeposit: "iron" },
+                    { id: 3, type: "empty", resourceDeposit: "silicio" },
+                    { id: 4, type: "empty", resourceDeposit: "titanium" },
+                    { id: 5, type: "empty" }, { id: 6, type: "empty" }, { id: 7, type: "empty" }, { id: 8, type: "empty" }, { id: 9, type: "empty" }
+                ],
                 fleet: {},
                 game_speed: 1000,
             };
-            let buildingIdCounter = 2;
-            [...chosenPlanet.resources, ...(chosenPlanet.unique_resources || [])].forEach(res => { gameState.resources[formatResName(res)] = 0; });
-            chosenPlanet.resources.forEach(res => {
-                gameState.buildings.push({ id: buildingIdCounter++, type: 'empty', resourceDeposit: formatResName(res) });
-            });
-            while(gameState.buildings.length < 9) {
-                gameState.buildings.push({id: buildingIdCounter++, type: 'empty'});
-            }
         }
         
         DOM.planetName.textContent = gameState.planetName;
         renderAll();
         
-        setInterval(() => {
+        // --- CORRECCIÓN: Iniciar bucles DESPUÉS de cargar el estado ---
+        const gameInterval = setInterval(() => {
             if (!gameState.buildings) return;
             gameState.buildings.forEach(plot => {
                 const blueprintName = plot.type.startsWith('extractor') ? 'extractor' : plot.type;
@@ -374,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderResources();
         }, gameState.game_speed);
 
-        setInterval(saveGame, 5000);
+        const saveInterval = setInterval(saveGame, 5000);
 
         document.body.addEventListener('click', e => {
             const target = e.target;
@@ -390,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (action === 'close_modal' || action === 'close_modal_from_game') closeModal();
                 if (action === 'sell_scrap_from_game') { const pieces = parseInt(actionButton.dataset.pieces); const earnings = parseInt(actionButton.dataset.earnings); gameState.resources.credits += earnings; saveGame(); renderAll(); closeModal(); }
                 if (action === 'keep_scrap_from_game') { const pieces = parseInt(actionButton.dataset.pieces); gameState.resources.piezas_de_chatarra += pieces; saveGame(); renderAll(); closeModal(); }
+                if (action === 'buy_system') buyFromSystem(actionButton.dataset.resource, parseInt(actionButton.dataset.amount), parseInt(actionButton.dataset.price));
             }
         });
     };
