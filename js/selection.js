@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-init.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-import { doc, setDoc, collection, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { doc, setDoc, collection, onSnapshot, runTransaction, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- BASE DE DATOS DE PLANETAS ---
@@ -13,15 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const planetGrid = document.getElementById('planet-selection-grid');
-    const modal = {
-        overlay: document.getElementById('info-modal'),
-        content: document.getElementById('info-modal').querySelector('.modal-content')
-    };
+    const modal = { overlay: document.getElementById('info-modal'), content: document.getElementById('info-modal').querySelector('.modal-content') };
     let currentUser = null;
 
     onAuthStateChanged(auth, user => {
         if (!user) {
-            alert("Error de sesión. Debes conectarte primero.");
             window.location.href = 'menu.html';
             return;
         }
@@ -32,9 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         onSnapshot(planetsRef, (snapshot) => {
             planetGrid.innerHTML = ''; // Limpia la grilla para redibujar
             const planetsStatus = {};
-            snapshot.forEach(doc => {
-                planetsStatus[doc.id] = doc.data();
-            });
+            snapshot.forEach(doc => { planetsStatus[doc.id] = doc.data(); });
             
             Object.values(PLANET_DATA).forEach(planet => {
                 const status = planetsStatus[planet.id];
@@ -51,23 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    const openModal = (htmlContent) => {
-        modal.content.innerHTML = htmlContent;
-        modal.overlay.classList.remove('hidden');
-    };
-    const closeModal = () => {
-        modal.overlay.classList.add('hidden');
-    };
+    const openModal = (htmlContent) => { modal.content.innerHTML = htmlContent; modal.overlay.classList.remove('hidden'); };
+    const closeModal = () => { modal.overlay.classList.add('hidden'); };
 
     planetGrid.addEventListener('click', async (e) => {
-        const target = e.target;
-        const card = target.closest('.planet-card');
+        const card = e.target.closest('.planet-card');
         if (!card || !currentUser) return;
 
         const planetId = card.dataset.planetId;
         const planetInfo = PLANET_DATA[planetId];
 
-        if (target.closest('.card-button') && !card.classList.contains('taken')) {
+        if (e.target.closest('.card-button') && !card.classList.contains('taken')) {
             const planetDocRef = doc(db, "planets", planetId);
             try {
                 // USA UNA TRANSACCIÓN PARA EVITAR QUE DOS JUGADORES TOMEN EL PLANETA A LA VEZ
@@ -77,38 +65,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw "¡Este planeta acaba de ser tomado por otro presidente!";
                     }
                     
-                    // Si el planeta está libre, lo tomamos y creamos la partida
                     transaction.update(planetDocRef, { isTaken: true, ownerId: currentUser.uid });
                     
                     const gameDocRef = doc(db, 'games', currentUser.uid);
                     const newGameData = createNewGame(currentUser, planetInfo);
                     transaction.set(gameDocRef, newGameData);
                 });
-                
-                // Si la transacción fue exitosa, redirigir
                 window.location.href = 'base.html';
-
             } catch (error) {
                 alert(error);
                 console.error("Error en la transacción: ", error);
             }
         }
         
-        if (target.closest('.card-info-btn')) {
-            const resourceCounts = planetInfo.resources.reduce((acc, res) => {
-                acc[res] = (acc[res] || 0) + 1;
-                return acc;
-            }, {});
-
+        if (e.target.closest('.card-info-btn')) {
+            const resourceCounts = planetInfo.resources.reduce((acc, res) => { acc[res] = (acc[res] || 0) + 1; return acc; }, {});
             let resourcesHTML = Object.entries(resourceCounts).map(([res, count]) => `<li><i class='bx bx-chip'></i>${res}${count > 1 ? ` (x${count})` : ''}</li>`).join('');
-            
-            const modalHTML = `
-                <button class="modal-close" id="modalCloseButton">&times;</button>
-                <h2 class="modal-title">${planetInfo.name}</h2>
-                <div class="resource-list">
-                    <h3>Recursos Disponibles</h3>
-                    <ul>${resourcesHTML}</ul>
-                </div>`;
+            const modalHTML = `<button class="modal-close" id="modalCloseButton">&times;</button><h2 class="modal-title">${planetInfo.name}</h2><div class="resource-list"><h3>Recursos Disponibles</h3><ul>${resourcesHTML}</ul></div>`;
             openModal(modalHTML);
         }
     });
@@ -117,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const createNewGame = (player, chosenPlanet) => {
         const formatResName = (name) => name.toLowerCase().replace(/ /g, '_');
-        
         const gameState = {
             player: { name: player.displayName, uid: player.uid },
             planetName: chosenPlanet.name,
@@ -126,12 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
             fleet: {},
             game_speed: 1000,
         };
-
         let buildingIdCounter = 2;
         
-        chosenPlanet.resources.forEach(res => {
-            gameState.resources[formatResName(res)] = 0;
-        });
+        // Crea un set de todos los recursos posibles para evitar duplicados en la barra de recursos
+        const allPossibleResources = new Set(chosenPlanet.resources);
+        allPossibleResources.forEach(res => { gameState.resources[formatResName(res)] = 0; });
         
         chosenPlanet.resources.forEach(res => {
             gameState.buildings.push({ id: buildingIdCounter++, type: 'empty', resourceDeposit: formatResName(res) });
