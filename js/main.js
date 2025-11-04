@@ -1,3 +1,13 @@
+import { auth, db } from './firebase-init.js';
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
 document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null;
     const userAuthCorner = document.getElementById('user-auth-corner');
@@ -6,66 +16,78 @@ document.addEventListener('DOMContentLoaded', () => {
         content: document.getElementById('modal-content')
     };
 
-    const updateAuthUI = () => {
-        if (currentUser) {
+    const updateAuthUI = (user) => {
+        if (user) {
+            currentUser = {
+                name: user.displayName || user.email.split('@')[0],
+                uid: user.uid
+            };
             userAuthCorner.innerHTML = `<div id="user-info"><i class='bx bxs-user-circle'></i><a href="#" data-action="change-name" title="Cambiar Nombre">${currentUser.name}</a></div><button data-action="logout"><i class='bx bx-log-out'></i> Abdicar</button>`;
         } else {
+            currentUser = null;
             userAuthCorner.innerHTML = `<button data-action="auth"><i class='bx bx-user-plus'></i> Conectar</button>`;
         }
     };
 
-    const handleLogin = (form) => {
-        const username = form.querySelector('input[type="text"]').value.trim();
-        if (!username) {
-            alert("Por favor, introduce un nombre.");
+    const handleRegister = async (form) => {
+        const username = form.querySelector('#reg-username').value.trim();
+        const email = `${username}@exo.game`; // Usamos un email falso para el sistema
+        const password = form.querySelector('#reg-password').value;
+
+        if (!username || password.length < 6) {
+            alert("Nombre inválido o clave demasiado corta (mín. 6 caracteres).");
             return;
         }
-        currentUser = { name: username };
-        localStorage.setItem('exoUser', JSON.stringify(currentUser));
-        updateAuthUI();
-        closeModal();
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, {
+                displayName: username
+            });
+            // onAuthStateChanged se encargará de actualizar la UI y cerrar la modal
+            closeModal();
+        } catch (error) {
+            alert(`Error al registrar: ${error.code === 'auth/email-already-in-use' ? 'Ese nombre de presidente ya existe.' : error.message}`);
+        }
+    };
+
+    const handleLogin = async (form) => {
+        const username = form.querySelector('#login-username').value.trim();
+        const email = `${username}@exo.game`;
+        const password = form.querySelector('#login-password').value;
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged se encargará de actualizar la UI y cerrar la modal
+            closeModal();
+        } catch (error) {
+            alert(`Error de conexión: Nombre o clave incorrectos.`);
+        }
     };
 
     const handleLogout = () => {
-        if (currentUser && confirm("¿Estás seguro de que quieres abdicar? Se borrará todo tu progreso guardado.")) {
-            localStorage.removeItem('exoSaveData_' + currentUser.name);
-            currentUser = null;
-            localStorage.removeItem('exoUser');
-            updateAuthUI();
+        if (confirm("¿Estás seguro de que quieres desconectar? Tu progreso se guardará.")) {
+            signOut(auth);
         }
     };
 
-    const handleNewGame = () => {
+    onAuthStateChanged(auth, user => {
+        updateAuthUI(user);
+    });
+
+    const handleNewGame = async () => {
         if (currentUser) {
-            const savedGame = localStorage.getItem('exoSaveData_' + currentUser.name);
-            // Si ya existe una partida guardada (lo que implica que ya se eligió un planeta), va directo a la base.
-            if (savedGame) {
+            const gameDocRef = doc(db, "games", currentUser.uid);
+            const docSnap = await getDoc(gameDocRef);
+            if (docSnap.exists()) {
                 window.location.href = 'base.html';
             } else {
-                // Si no hay partida, va a la pantalla de selección.
                 window.location.href = 'selection.html';
             }
         } else {
             alert('Debes conectarte para empezar a gobernar.');
             openModal('auth');
         }
-    };
-
-    const handleChangeName = (form) => {
-        const newName = form.querySelector('input[type="text"]').value.trim();
-        if (!newName || newName === currentUser.name) return;
-
-        // Mueve la partida guardada al nuevo nombre de usuario
-        const oldSaveData = localStorage.getItem('exoSaveData_' + currentUser.name);
-        if (oldSaveData) {
-            localStorage.setItem('exoSaveData_' + newName, oldSaveData);
-            localStorage.removeItem('exoSaveData_' + currentUser.name);
-        }
-
-        currentUser.name = newName;
-        localStorage.setItem('exoUser', JSON.stringify(currentUser));
-        updateAuthUI();
-        closeModal();
     };
 
     const openModal = (type) => {
@@ -75,14 +97,14 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'auth':
                 contentHTML = `${closeButton}
                     <div id="loginFormContainer">
-                        <form id="loginFormModal" class="auth-form"><h1>Conexión Presidencial</h1><div class="input-box"><input type="text" placeholder="Nombre de Presidente" required value="DZM"><i class='bx bxs-user-circle'></i></div><div class="input-box"><input type="password" placeholder="Clave" required value="12345"><i class='bx bxs-key'></i></div><button type="submit" class="btn">Asumir el Mando</button><div class="form-switcher"><p>¿Sin registro? <a href="#" data-form-switcher="register">Crear nuevo Perfil</a></p></div></form>
+                        <form id="loginFormModal" class="auth-form"><h1>Conexión Presidencial</h1><div class="input-box"><input type="text" id="login-username" placeholder="Nombre de Presidente" required value="DZM"><i class='bx bxs-user-circle'></i></div><div class="input-box"><input type="password" id="login-password" placeholder="Clave" required value="12345"><i class='bx bxs-key'></i></div><button type="submit" class="btn">Asumir el Mando</button><div class="form-switcher"><p>¿Sin registro? <a href="#" data-form-switcher="register">Crear nuevo Perfil</a></p></div></form>
                     </div>
                     <div id="registerFormContainer" class="hidden">
-                        <form id="registerFormModal" class="auth-form"><h1>Crear Perfil</h1><div class="input-box"><input type="text" placeholder="Elige tu Nombre" required><i class='bx bxs-user-circle'></i></div><div class="input-box"><input type="password" placeholder="Define una Clave" required><i class='bx bxs-key'></i></div><button type="submit" class="btn">Registrar</button><div class="form-switcher"><p>¿Ya tienes un Perfil? <a href="#" data-form-switcher="login">Conectar</a></p></div></form>
+                        <form id="registerFormModal" class="auth-form"><h1>Crear Perfil</h1><div class="input-box"><input type="text" id="reg-username" placeholder="Elige tu Nombre" required><i class='bx bxs-user-circle'></i></div><div class="input-box"><input type="password" id="reg-password" placeholder="Define una Clave (mín. 6 caracteres)" required><i class='bx bxs-key'></i></div><button type="submit" class="btn">Registrar</button><div class="form-switcher"><p>¿Ya tienes un Perfil? <a href="#" data-form-switcher="login">Conectar</a></p></div></form>
                     </div>`;
                 break;
             case 'change-name':
-                contentHTML = `${closeButton}<form id="changeNameFormModal" class="auth-form"><h1>Cambiar Nombre</h1><div class="input-box"><input type="text" placeholder="Nuevo Nombre" required value="${currentUser.name}"><i class='bx bxs-user-check'></i></div><button type="submit" class="btn">Confirmar</button></form>`;
+                contentHTML = `${closeButton}<h2 class="modal-title">Cambiar Nombre</h2><p class="modal-body">Esta función no está disponible en la versión actual.</p>`;
                 break;
             case 'options':
                 contentHTML = `${closeButton}<h2 class="modal-title">Opciones del Juego</h2><div class="modal-body"><p>Ajustes de sonido, gráficos y jugabilidad estarán disponibles aquí.</p></div>`;
@@ -103,30 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = e.target;
         const actionTarget = target.closest('[data-action]');
         const formSwitcher = target.closest('[data-form-switcher]');
+
         if (actionTarget) {
             e.preventDefault();
             const action = actionTarget.dataset.action;
-            switch (action) {
-                case 'new-game':
-                    handleNewGame();
-                    break;
-                case 'options':
-                    openModal('options');
-                    break;
-                case 'credits':
-                    openModal('credits');
-                    break;
-                case 'auth':
-                    openModal('auth');
-                    break;
-                case 'logout':
-                    handleLogout();
-                    break;
-                case 'change-name':
-                    openModal('change-name');
-                    break;
+            if (action === 'new-game') {
+                handleNewGame();
+            } else if (action === 'logout') {
+                handleLogout();
+            } else {
+                openModal(action);
             }
         }
+
         if (formSwitcher) {
             e.preventDefault();
             const switchTo = formSwitcher.dataset.formSwitcher;
@@ -140,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 registerContainer.classList.add('hidden');
             }
         }
+
         if (target.id === 'modalCloseButton' || target === modal.overlay) {
             closeModal();
         }
@@ -147,30 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     modal.content.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (e.target.id === 'loginFormModal' || e.target.id === 'registerFormModal') {
+        if (e.target.id === 'loginFormModal') {
             handleLogin(e.target);
-        } else if (e.target.id === 'changeNameFormModal') {
-            handleChangeName(e.target);
+        }
+        if (e.target.id === 'registerFormModal') {
+            handleRegister(e.target);
         }
     });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === "Escape" && !modal.overlay.classList.contains('hidden')) {
-            closeModal();
-        }
-    });
-    
-    const checkSession = () => {
-        try {
-            const userString = localStorage.getItem('exoUser');
-            if (userString) {
-                currentUser = JSON.parse(userString);
-            }
-        } catch (error) {
-            localStorage.removeItem('exoUser');
-            currentUser = null;
-        }
-        updateAuthUI();
-    };
-    checkSession();
 });

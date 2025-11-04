@@ -1,3 +1,7 @@
+import { auth, db } from './firebase-init.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+import { doc, setDoc, collection, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- BASE DE DATOS DE PLANETAS ---
     const PLANET_DATA = {
@@ -9,41 +13,87 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const planetGrid = document.getElementById('planet-selection-grid');
-    const modal = { overlay: document.getElementById('info-modal'), content: document.getElementById('info-modal').querySelector('.modal-content') };
+    const modal = {
+        overlay: document.getElementById('info-modal'),
+        content: document.getElementById('info-modal').querySelector('.modal-content')
+    };
+    let currentUser = null;
 
-    if (!localStorage.getItem('exoUser')) {
-        alert("Error de sesión. Debes conectarte primero.");
-        window.location.href = 'menu.html';
-        return;
-    }
+    onAuthStateChanged(auth, user => {
+        if (!user) {
+            alert("Error de sesión. Debes conectarte primero.");
+            window.location.href = 'menu.html';
+            return;
+        }
+        currentUser = user;
 
-    Object.values(PLANET_DATA).forEach(planet => {
-        planetGrid.innerHTML += `
-            <div class="planet-card" data-planet-id="${planet.id}">
-                <button class="card-info-btn" title="Ver Información"><i class='bx bx-info-circle'></i></button>
-                <i class='bx bxs-planet card-icon'></i>
-                <h2 class="card-title">${planet.name}</h2>
-                <button class="card-button">Establecer Colonia</button>
-            </div>`;
+        // Escucha en tiempo real los cambios en la colección de planetas
+        const planetsRef = collection(db, "planets");
+        onSnapshot(planetsRef, (snapshot) => {
+            planetGrid.innerHTML = ''; // Limpia la grilla para redibujar
+            const planetsStatus = {};
+            snapshot.forEach(doc => {
+                planetsStatus[doc.id] = doc.data();
+            });
+            
+            Object.values(PLANET_DATA).forEach(planet => {
+                const status = planetsStatus[planet.id];
+                const isTaken = status ? status.isTaken : false;
+                planetGrid.innerHTML += `
+                    <div class="planet-card ${isTaken ? 'taken' : ''}" data-planet-id="${planet.id}">
+                        ${isTaken ? `<div class="taken-overlay">OCUPADO</div>` : ''}
+                        <button class="card-info-btn" title="Ver Información"><i class='bx bx-info-circle'></i></button>
+                        <i class='bx bxs-planet card-icon'></i>
+                        <h2 class="card-title">${planet.name}</h2>
+                        <button class="card-button" ${isTaken ? 'disabled' : ''}>Establecer Colonia</button>
+                    </div>`;
+            });
+        });
     });
+    
+    const openModal = (htmlContent) => {
+        modal.content.innerHTML = htmlContent;
+        modal.overlay.classList.remove('hidden');
+    };
+    const closeModal = () => {
+        modal.overlay.classList.add('hidden');
+    };
 
-    const openModal = (htmlContent) => { modal.content.innerHTML = htmlContent; modal.overlay.classList.remove('hidden'); };
-    const closeModal = () => { modal.overlay.classList.add('hidden'); };
-
-    planetGrid.addEventListener('click', (e) => {
+    planetGrid.addEventListener('click', async (e) => {
         const target = e.target;
         const card = target.closest('.planet-card');
-        if (!card) return;
+        if (!card || !currentUser) return;
+
         const planetId = card.dataset.planetId;
         const planetInfo = PLANET_DATA[planetId];
-        if (target.closest('.card-button')) {
-            const user = JSON.parse(localStorage.getItem('exoUser'));
-            const saveData = {
-                chosenPlanet: planetInfo
-            };
-            localStorage.setItem('exoSaveData_' + user.name, JSON.stringify(saveData));
-            window.location.href = 'base.html';
+
+        if (target.closest('.card-button') && !card.classList.contains('taken')) {
+            const planetDocRef = doc(db, "planets", planetId);
+            try {
+                // USA UNA TRANSACCIÓN PARA EVITAR QUE DOS JUGADORES TOMEN EL PLANETA A LA VEZ
+                await runTransaction(db, async (transaction) => {
+                    const planetDoc = await transaction.get(planetDocRef);
+                    if (!planetDoc.exists() || planetDoc.data().isTaken) {
+                        throw "¡Este planeta acaba de ser tomado por otro presidente!";
+                    }
+                    
+                    // Si el planeta está libre, lo tomamos y creamos la partida
+                    transaction.update(planetDocRef, { isTaken: true, ownerId: currentUser.uid });
+                    
+                    const gameDocRef = doc(db, 'games', currentUser.uid);
+                    const newGameData = createNewGame(currentUser, planetInfo);
+                    transaction.set(gameDocRef, newGameData);
+                });
+                
+                // Si la transacción fue exitosa, redirigir
+                window.location.href = 'base.html';
+
+            } catch (error) {
+                alert(error);
+                console.error("Error en la transacción: ", error);
+            }
         }
+        
         if (target.closest('.card-info-btn')) {
             const resourceCounts = planetInfo.resources.reduce((acc, res) => {
                 acc[res] = (acc[res] || 0) + 1;
@@ -64,5 +114,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('click', (e) => { if (e.target.id === 'modalCloseButton' || e.target === modal.overlay) { closeModal(); } });
-    document.addEventListener('keydown', (e) => { if (e.key === "Escape" && !modal.overlay.classList.contains('hidden')) { closeModal(); } });
+    
+    const createNewGame = (player, chosenPlanet) => {
+        const formatResName = (name) => name.toLowerCase().replace(/ /g, '_');
+        
+        const gameState = {
+            player: { name: player.displayName, uid: player.uid },
+            planetName: chosenPlanet.name,
+            resources: { credits: 500, piezas_de_chatarra: 0 },
+            buildings: [ { id: 1, type: "mine", level: 1 } ],
+            fleet: {},
+            game_speed: 1000,
+        };
+
+        let buildingIdCounter = 2;
+        
+        chosenPlanet.resources.forEach(res => {
+            gameState.resources[formatResName(res)] = 0;
+        });
+        
+        chosenPlanet.resources.forEach(res => {
+            gameState.buildings.push({ id: buildingIdCounter++, type: 'empty', resourceDeposit: formatResName(res) });
+        });
+        
+        while(gameState.buildings.length < 9) {
+            gameState.buildings.push({id: buildingIdCounter++, type: 'empty'});
+        }
+        return gameState;
+    };
 });

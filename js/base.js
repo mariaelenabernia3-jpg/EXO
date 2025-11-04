@@ -1,3 +1,7 @@
+import { auth, db } from './firebase-init.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- BLUEPRINTS ---
     const ICONS = { credits: 'bxs-coin-stack', iron: 'bxs-cube-alt', titanium: 'bxs-layer', silicio: 'bxs-chip', agua: 'bxs-droplet', biomasa: 'bxs-leaf', 'gas_helio-3': 'bxs-cloud', 'fibra_de_carbono': 'bxs-grid-alt', polímeros: 'bxs-vial', hidrógeno: 'bxs-flame', amoníaco: 'bxs-bong', 'agua_pesada': 'bxs-battery', litio: 'bxs-car-battery', sal: 'bxs-invader', algas: 'bxs-bug-alt', 'hielo_de_metano': 'bxs-cube', nitrógeno: 'bxs-wind', xenón: 'bxs-meteor', 'minerales_raros': 'bxs-component', piezas_de_chatarra: 'bxs-wrench', default: 'bxs-diamond' };
@@ -15,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let gameState = {};
+    let currentUser = null;
     const DOM = {
         resourceBar: document.getElementById('resource-bar'),
         baseGrid: document.getElementById('base-grid'),
@@ -31,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canAfford = (cost) => Object.keys(cost).every(res => gameState.resources[formatResName(res)] >= cost[res]);
     const spendResources = (cost) => Object.keys(cost).forEach(res => { gameState.resources[formatResName(res)] -= cost[res]; });
     const closeModal = () => { DOM.gameModal.overlay.classList.add('hidden'); DOM.gameModal.content.innerHTML = ''; };
-    const saveGame = () => { if (gameState && gameState.player) { localStorage.setItem('exoSaveData_' + gameState.player.name, JSON.stringify(gameState)); } };
+    const saveGame = async () => { if (gameState && currentUser) { await setDoc(doc(db, 'games', currentUser.uid), gameState); } };
 
     function renderAll() {
         renderResources();
@@ -160,16 +165,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const station = gameState.buildings.find(b => b.type === stationType);
-        let blueprint = BLUEPRINTS.buildings[stationType];
-        let stationLevel = station.level;
-        let body = '';
-        let title = blueprint.name;
+        const blueprint = BLUEPRINTS.buildings[stationType];
+        let body = '', title = blueprint.name;
 
         if (stationType === 'recycler') {
             body = `<div class="station-section"><h3>Reciclaje de Chatarra</h3><div class="offer-item"><span>Tienes ${Math.floor(gameState.resources.piezas_de_chatarra)} piezas</span><button class="btn btn-small" data-action="sell_scrap" ${gameState.resources.piezas_de_chatarra < 1 ? 'disabled':''}>Vender Todo por ${Math.floor(gameState.resources.piezas_de_chatarra * BLUEPRINTS.market.scrap_value)} C</button></div></div>`;
         }
         
-        DOM.gameModal.content.innerHTML = `<div class="game-modal-header"><h2 class="game-modal-title">${title} (Nivel ${stationLevel})</h2><button class="modal-close-btn" data-action="close_modal">&times;</button></div><div class="game-modal-body">${body}</div>`;
+        DOM.gameModal.content.innerHTML = `<div class="game-modal-header"><h2 class="game-modal-title">${title} (Nivel ${station.level})</h2><button class="modal-close-btn" data-action="close_modal">&times;</button></div><div class="game-modal-body">${body}</div>`;
         DOM.gameModal.overlay.classList.remove('hidden');
     }
     
@@ -204,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.projectiles = [];
             this.enemies = [];
             this.enemyProjectiles = [];
-            
             this.scoreUI = DOM.gameModal.content.querySelector('#mg-score');
             this.timerUI = DOM.gameModal.content.querySelector('#mg-timer');
         }
@@ -261,10 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         gameLoop = () => {
             if (this.gameOver) return;
-
             if (this.fireCooldown > 0) this.fireCooldown--;
             if (this.fireCooldown === 0) { this.projectiles.push({x: this.player.x, y: this.player.y - this.player.height/2}); this.fireCooldown = 15; }
-            
             this.projectiles.forEach((p, pi) => { p.y -= 8; if(p.y < 0) this.projectiles.splice(pi, 1); });
             this.enemyProjectiles.forEach((p, pi) => { p.y += 6; if(p.y > this.canvas.height) this.enemyProjectiles.splice(pi, 1); });
             this.enemies.forEach((e, ei) => { e.y += e.speed; if(e.y > this.canvas.height) this.enemies.splice(ei, 1); });
@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 50);
     }
     
-    const init = () => {
+    const init = async () => {
         let player, savedData;
         try {
             const userString = localStorage.getItem('exoUser');
@@ -332,8 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 game_speed: 1000,
             };
             let buildingIdCounter = 2;
-            const allPlanetResources = [...chosenPlanet.resources, ...(chosenPlanet.unique_resources || [])];
-            allPlanetResources.forEach(res => { gameState.resources[formatResName(res)] = 0; });
+            [...chosenPlanet.resources, ...(chosenPlanet.unique_resources || [])].forEach(res => { gameState.resources[formatResName(res)] = 0; });
             chosenPlanet.resources.forEach(res => {
                 gameState.buildings.push({ id: buildingIdCounter++, type: 'empty', resourceDeposit: formatResName(res) });
             });
