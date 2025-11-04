@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             signOut(auth);
         }
     };
-    
+
     onAuthStateChanged(auth, user => {
         updateAuthUI(user);
     });
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             openModal('auth');
         }
     };
-    
+
     const openModal = (type) => {
         let contentHTML = '';
         const closeButton = `<button class="modal-close" id="modalCloseButton">&times;</button>`;
@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 contentHTML = `${closeButton}<h2 class="modal-title">Créditos</h2><div class="modal-body"><p>Juego creado por:</p><p class="credits-studio">DZM Studios</p></div>`;
                 break;
             case 'change-name':
-                 contentHTML = `${closeButton}<h2 class="modal-title">Cambiar Nombre</h2><div class="modal-body"><p>Esta función se ha deshabilitado para mantener la integridad de las partidas guardadas en la nube.</p></div>`;
-                 break;
+                contentHTML = `${closeButton}<h2 class="modal-title">Cambiar Nombre</h2><div class="modal-body"><p>Esta función se ha deshabilitado para mantener la integridad de las partidas en la nube.</p></div>`;
+                break;
         }
         modal.content.innerHTML = contentHTML;
         modal.overlay.classList.remove('hidden');

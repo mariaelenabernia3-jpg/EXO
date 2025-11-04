@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             storage_credits: { name: "Almacén de Créditos", upgrades: [ { level: 1, cost: { credits: 200 }, cap: 5000 }, { level: 2, cost: { credits: 1000 }, cap: 20000 }, { level: 3, cost: { credits: 3000, iron: 100 }, cap: 100000 } ] },
             storage_resources: { name: "Almacén de Recursos", upgrades: [ { level: 1, cost: { credits: 800 }, cap: 1000 }, { level: 2, cost: { credits: 2500, iron: 250 }, cap: 5000 } ] },
             workshop: { name: "Taller de Naves", upgrades: [ { level: 1, cost: { credits: 2000, iron: 150 } }, { level: 2, cost: { credits: 10000, titanium: 50 } } ] },
+            marketplace: { name: "Mercado Galáctico", upgrades: [ { level: 1, cost: { credits: 1500 } } ] },
             recycler: { name: "Planta de Reciclaje", upgrades: [ { level: 1, cost: { credits: 750, iron: 25 } } ] },
             simulator: { name: "Simulador de Combate" },
             extractor: { name: "Extractor", upgrades: [ { level: 1, cost: { credits: 300 }, prod: 10 }, { level: 2, cost: { credits: 900, iron: 20 }, prod: 25 } ] }
@@ -36,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canAfford = (cost) => Object.keys(cost).every(res => gameState.resources[formatResName(res)] >= cost[res]);
     const spendResources = (cost) => Object.keys(cost).forEach(res => { gameState.resources[formatResName(res)] -= cost[res]; });
     const closeModal = () => { DOM.gameModal.overlay.classList.add('hidden'); DOM.gameModal.content.innerHTML = ''; };
-    const saveGame = async () => { if (gameState && currentUser) { await setDoc(doc(db, 'games', currentUser.uid), gameState); } };
+    const saveGame = async () => { if (gameState && currentUser) { await setDoc(doc(db, 'games', currentUser.uid), gameState, { merge: true }); } };
 
     function renderAll() {
         renderResources();
@@ -50,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const creditStorage = gameState.buildings.find(b => b.type === 'storage_credits');
         const creditCap = creditStorage ? BLUEPRINTS.buildings.storage_credits.upgrades[creditStorage.level - 1].cap : 1000;
         html += `<div class="resource-item" title="Créditos"><i class='bx ${getIcon('credits')}'></i><span>${Math.floor(gameState.resources.credits)} / ${creditCap}</span></div>`;
-
         const resourceStorage = gameState.buildings.find(b => b.type === 'storage_resources');
         const resourceCap = resourceStorage ? BLUEPRINTS.buildings.storage_resources.upgrades[resourceStorage.level - 1].cap : 500;
         let totalResources = 0;
@@ -62,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         html += `<div class="resource-item" title="Almacén de Recursos"><i class='bx bxs-box'></i><span>${Math.floor(totalResources)} / ${resourceCap}</span></div>`;
-        
         Object.keys(otherResources).forEach(res => {
              html += `<div class="resource-item" title="${res}"><i class='bx ${getIcon(res)}'></i><span>${Math.floor(otherResources[res])}</span></div>`;
         });
@@ -322,10 +321,17 @@ document.addEventListener('DOMContentLoaded', () => {
             savedData = saveDataString ? JSON.parse(saveDataString) : null;
         } catch (e) { window.location.href = 'menu.html'; return; }
 
-        if (savedData && savedData.buildings) {
+        if (savedData && savedData.chosenPlanet) {
             gameState = savedData;
-        } else if (savedData && savedData.chosenPlanet) {
-            const chosenPlanet = savedData.chosenPlanet;
+        } else {
+            // Si no hay partida guardada, se crea una nueva (simplificado)
+            const chosenPlanetString = sessionStorage.getItem('exoChosenPlanet');
+            if(!chosenPlanetString){
+                alert("Error: No se encontró partida. Por favor, selecciona un planeta.");
+                window.location.href = 'selection.html';
+                return;
+            }
+            const chosenPlanet = JSON.parse(chosenPlanetString);
             gameState = {
                 player,
                 planetName: chosenPlanet.name,
@@ -335,18 +341,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 game_speed: 1000,
             };
             let buildingIdCounter = 2;
-            const allPlanetResources = [...chosenPlanet.resources, ...(chosenPlanet.unique_resources || [])];
-            allPlanetResources.forEach(res => { gameState.resources[formatResName(res)] = 0; });
+            [...chosenPlanet.resources, ...(chosenPlanet.unique_resources || [])].forEach(res => { gameState.resources[formatResName(res)] = 0; });
             chosenPlanet.resources.forEach(res => {
                 gameState.buildings.push({ id: buildingIdCounter++, type: 'empty', resourceDeposit: formatResName(res) });
             });
             while(gameState.buildings.length < 9) {
                 gameState.buildings.push({id: buildingIdCounter++, type: 'empty'});
             }
-        } else {
-            alert("Error: No se encontró partida. Por favor, selecciona un planeta.");
-            window.location.href = 'selection.html';
-            return;
         }
         
         DOM.planetName.textContent = gameState.planetName;
@@ -357,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.buildings.forEach(plot => {
                 const blueprintName = plot.type.startsWith('extractor') ? 'extractor' : plot.type;
                 const blueprint = BLUEPRINTS.buildings[blueprintName];
-                if (!blueprint || !blueprint.upgrades[plot.level - 1]) return;
+                if (!blueprint || !blueprint.upgrades || !blueprint.upgrades[plot.level - 1]) return;
                 const levelInfo = blueprint.upgrades[plot.level - 1];
                 if (plot.type === 'mine') {
                     const storage = gameState.buildings.find(b => b.type === 'storage_credits');
