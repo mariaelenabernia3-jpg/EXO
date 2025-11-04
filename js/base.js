@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- BLUEPRINTS (Definiciones de Edificios, Naves y Precios) ---
-    const ICONS = { credits: 'bxs-coin-stack', iron: 'bxs-cube-alt', titanium: 'bxs-layer', silicio: 'bxs-chip', piezas_de_chatarra: 'bxs-wrench', default: 'bxs-package' };
+    // --- BLUEPRINTS ---
+    const ICONS = { credits: 'bxs-coin-stack', iron: 'bxs-cube-alt', titanium: 'bxs-layer', silicio: 'bxs-chip', agua: 'bxs-droplet', biomasa: 'bxs-leaf', 'gas_helio-3': 'bxs-cloud', 'fibra_de_carbono': 'bxs-grid-alt', polímeros: 'bxs-vial', hidrógeno: 'bxs-flame', amoníaco: 'bxs-bong', 'agua_pesada': 'bxs-battery', litio: 'bxs-car-battery', sal: 'bxs-invader', algas: 'bxs-bug-alt', 'hielo_de_metano': 'bxs-cube', nitrógeno: 'bxs-wind', xenón: 'bxs-meteor', 'minerales_raros': 'bxs-component', piezas_de_chatarra: 'bxs-wrench', default: 'bxs-diamond' };
     const BLUEPRINTS = {
         buildings: {
             mine: { name: "Mina de Oro", upgrades: [ { level: 1, cost: {}, prod: 20 }, { level: 2, cost: { credits: 400 }, prod: 50 }, { level: 3, cost: { credits: 1200, iron: 20 }, prod: 120 } ] },
@@ -8,30 +8,22 @@ document.addEventListener('DOMContentLoaded', () => {
             storage_resources: { name: "Almacén de Recursos", upgrades: [ { level: 1, cost: { credits: 800 }, cap: 1000 }, { level: 2, cost: { credits: 2500, iron: 250 }, cap: 5000 } ] },
             workshop: { name: "Taller de Naves", upgrades: [ { level: 1, cost: { credits: 2000, iron: 150 } }, { level: 2, cost: { credits: 10000, titanium: 50 } } ] },
             marketplace: { name: "Mercado Galáctico", upgrades: [ { level: 1, cost: { credits: 1500 } } ] },
+            recycler: { name: "Planta de Reciclaje", upgrades: [ { level: 1, cost: { credits: 750, iron: 25 } } ] },
             simulator: { name: "Simulador de Combate" },
             extractor: { name: "Extractor", upgrades: [ { level: 1, cost: { credits: 300 }, prod: 10 }, { level: 2, cost: { credits: 900, iron: 20 }, prod: 25 } ] }
         },
         ships: {
             interceptor: { name: "Interceptor", unlocked: 1, cost: { iron: 50, silicio: 20 }, space: 1 },
-            destroyer: { name: "Destructor", unlocked: 2, cost: { titanium: 100, iron: 150 }, space: 5 }
+            destroyer: { name: "Destructor", unlocked: 2, cost: { titanium: 100, 'Cristal de Kyber': 5 }, space: 5 }
         },
         market: {
-            system_prices: { iron: 15, silicio: 25 },
+            system_prices: { iron: 15, silicio: 25, titanium: 50 },
             scrap_value: 15
         }
     };
 
     let gameState = {};
-    const DOM = {
-        resourceBar: document.getElementById('resource-bar'),
-        baseGrid: document.getElementById('base-grid'),
-        infoPanel: document.getElementById('info-panel'),
-        planetName: document.getElementById('planet-name-display'),
-        gameModal: {
-            overlay: document.getElementById('game-modal-overlay'),
-            content: document.getElementById('game-modal-content'),
-        }
-    };
+    const DOM = { resourceBar: document.getElementById('resource-bar'), baseGrid: document.getElementById('base-grid'), infoPanel: document.getElementById('info-panel'), planetName: document.getElementById('planet-name-display'), gameModal: { overlay: document.getElementById('game-modal-overlay'), content: document.getElementById('game-modal-content'), } };
     
     const formatResName = (name) => name.toLowerCase().replace(/ /g, '_');
     const getIcon = (resName) => ICONS[formatResName(resName)] || 'bxs-package';
@@ -46,23 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const creditStorage = gameState.buildings.find(b => b.type === 'storage_credits');
         const creditCap = creditStorage ? BLUEPRINTS.buildings.storage_credits.upgrades[creditStorage.level - 1].cap : 1000;
         html += `<div class="resource-item" title="Créditos"><i class='bx ${getIcon('credits')}'></i><span>${Math.floor(gameState.resources.credits)} / ${creditCap}</span></div>`;
-
         const resourceStorage = gameState.buildings.find(b => b.type === 'storage_resources');
         const resourceCap = resourceStorage ? BLUEPRINTS.buildings.storage_resources.upgrades[resourceStorage.level - 1].cap : 500;
         let totalResources = 0;
         const otherResources = {};
-        Object.keys(gameState.resources).forEach(res => {
-            if (res !== 'credits') {
-                totalResources += gameState.resources[res];
-                otherResources[res] = gameState.resources[res];
-            }
-        });
-
+        Object.keys(gameState.resources).forEach(res => { if (res !== 'credits') { totalResources += gameState.resources[res]; otherResources[res] = gameState.resources[res]; } });
         html += `<div class="resource-item" title="Almacén de Recursos"><i class='bx bxs-box'></i><span>${Math.floor(totalResources)} / ${resourceCap}</span></div>`;
-        
-        Object.keys(otherResources).forEach(res => {
-             html += `<div class="resource-item" title="${res}"><i class='bx ${getIcon(res)}'></i><span>${Math.floor(otherResources[res])}</span></div>`;
-        });
+        Object.keys(otherResources).forEach(res => { html += `<div class="resource-item" title="${res}"><i class='bx ${getIcon(res)}'></i><span>${Math.floor(otherResources[res])}</span></div>`; });
         DOM.resourceBar.innerHTML = html;
     }
     
@@ -74,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (plot.type !== 'empty') {
                 const blueprint = BLUEPRINTS.buildings[plot.type];
                 const title = blueprint ? `${blueprint.name} Nv. ${plot.level}` : '';
-                const iconMap = { mine: 'bxs-cog', storage_credits: 'bxs-bank', storage_resources: 'bxs-box', workshop: 'bxs-wrench', marketplace: 'bxs-store-alt' };
+                const iconMap = { mine: 'bxs-cog', storage_credits: 'bxs-bank', storage_resources: 'bxs-box', workshop: 'bxs-wrench', recycler: 'bxs-recycle', marketplace: 'bxs-store-alt' };
                 const icon = plot.type === 'extractor' ? getIcon(plot.resource) : iconMap[plot.type];
                 const buildingClass = `building-${plot.type}`;
                 content = `<i class='bx ${icon} building-icon ${buildingClass}' title="${title}"></i>`;
@@ -98,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cost = BLUEPRINTS.buildings.extractor.upgrades[0].cost;
                 actionsHTML = `<button class="btn" data-action="build" data-plot-id="${plot.id}" data-building-type="extractor" ${!canAfford(cost) ? 'disabled' : ''}>Construir Extractor (${cost.credits} C)</button>`;
             } else {
-                const buildOptions = ['storage_credits', 'storage_resources', 'workshop', 'marketplace'];
+                const buildOptions = ['storage_credits', 'storage_resources', 'workshop', 'recycler', 'marketplace'];
                 actionsHTML = buildOptions.map(bType => {
                     if (!gameState.buildings.some(b => b.type === bType)) {
                         const cost = BLUEPRINTS.buildings[bType].upgrades[0].cost;
@@ -113,91 +95,46 @@ document.addEventListener('DOMContentLoaded', () => {
             statsHTML += `<li><span>Nivel:</span><strong>${plot.level}</strong></li>`;
             if (currentLevelInfo.prod) statsHTML += `<li><span>Producción:</span><strong class="production">+${currentLevelInfo.prod} / min</strong></li>`;
             if (currentLevelInfo.cap) statsHTML += `<li><span>Capacidad:</span><strong class="capacity">${currentLevelInfo.cap}</strong></li>`;
-            if (plot.type === 'workshop' || plot.type === 'marketplace') actionsHTML = `<button class="btn" data-action="open_station" data-station-type="${plot.type}">Abrir Interfaz</button>`;
+            if (plot.type === 'workshop' || plot.type === 'recycler' || plot.type === 'marketplace') actionsHTML = `<button class="btn" data-action="open_station" data-station-type="${plot.type}">Abrir Interfaz</button>`;
             if (nextLevelInfo) {
                 let costText = Object.keys(nextLevelInfo.cost).map(res => `${nextLevelInfo.cost[res]} ${res}`).join(' + ');
                 actionsHTML += `<button class="btn" data-action="upgrade" data-plot-id="${plot.id}" ${!canAfford(nextLevelInfo.cost) ? 'disabled' : ''}>Mejorar (${costText})</button>`;
-            } else if (plot.type !== 'workshop' && plot.type !== 'marketplace') {
+            } else if (plot.type !== 'workshop' && plot.type !== 'recycler' && plot.type !== 'marketplace') {
                 actionsHTML += `<p style="text-align: center;">Nivel Máximo</p>`;
             }
         }
         DOM.infoPanel.innerHTML = `<h2 class="panel-title">${title}</h2><ul class="panel-stats">${statsHTML}</ul><div class="panel-actions">${actionsHTML}</div>`;
     }
     
-    function upgradeBuilding(plotId) {
-        const plot = gameState.buildings.find(p => p.id === plotId);
-        const blueprint = BLUEPRINTS.buildings[plot.type];
-        if (!blueprint.upgrades[plot.level]) return;
-        const cost = blueprint.upgrades[plot.level].cost;
-        if (canAfford(cost)) {
-            spendResources(cost);
-            plot.level++;
-            renderAll();
-            renderInfoPanel(plotId);
-        }
-    }
-    
-    function buildBuilding(plotId, buildingType) {
-        const plot = gameState.buildings.find(p => p.id === plotId);
-        const cost = BLUEPRINTS.buildings[buildingType].upgrades[0].cost;
-        if (canAfford(cost)) {
-            spendResources(cost);
-            plot.type = buildingType;
-            plot.level = 1;
-            if (buildingType === 'extractor') {
-                plot.resource = plot.resourceDeposit;
-                delete plot.resourceDeposit;
-            }
-            renderAll();
-            renderInfoPanel(plotId);
-        }
-    }
+    function upgradeBuilding(plotId) { const plot = gameState.buildings.find(p => p.id === plotId); const blueprint = BLUEPRINTS.buildings[plot.type]; if (!blueprint.upgrades[plot.level]) return; const cost = blueprint.upgrades[plot.level].cost; if (canAfford(cost)) { spendResources(cost); plot.level++; renderAll(); renderInfoPanel(plotId); } }
+    function buildBuilding(plotId, buildingType) { const plot = gameState.buildings.find(p => p.id === plotId); const cost = BLUEPRINTS.buildings[buildingType].upgrades[0].cost; if (canAfford(cost)) { spendResources(cost); plot.type = buildingType; plot.level = 1; if (buildingType === 'extractor') { plot.resource = plot.resourceDeposit; delete plot.resourceDeposit; } renderAll(); renderInfoPanel(plotId); } }
     
     function openGameModal(stationType) {
-        const station = gameState.buildings.find(b => b.type === stationType);
-        let blueprint = BLUEPRINTS.buildings[stationType];
-        if (!blueprint) blueprint = { name: "Simulador de Combate" };
-        let stationLevel = station ? station.level : 1;
-        let body = '';
-        let title = blueprint.name;
-
         if (stationType === 'simulator') {
             launchMinigame();
             return;
         }
         
-        if (stationType === 'workshop') {
-            let shipsHTML = Object.keys(BLUEPRINTS.ships).map(id => {
-                const ship = BLUEPRINTS.ships[id];
-                if (station.level < ship.unlocked) return `<li class="ship-card" style="opacity:0.5; cursor:not-allowed;"><div><h4>${ship.name}</h4><p>Requiere Taller Nivel ${ship.unlocked}</p></div></li>`;
-                let costHTML = Object.keys(ship.cost).map(res => `<li><i class='bx ${getIcon(res)}'></i> ${ship.cost[res]} ${res}</li>`).join('');
-                return `<li class="ship-card"><div class="ship-card-main"><img src="../assets/images/nave.png" alt="nave"><div><h4>${ship.name} (Tienes: ${gameState.fleet[id] || 0})</h4></div></div><div class="ship-cost"><strong>Coste:</strong><ul>${costHTML}</ul><button class="btn" data-action="build_ship" data-ship-id="${id}" ${!canAfford(ship.cost) ? 'disabled' : ''}>Construir</button></div></li>`;
-            }).join('');
-            body = `<div class="station-section"><h3>Flota Disponible</h3><ul class="ship-list">${shipsHTML}</ul></div>`;
+        const station = gameState.buildings.find(b => b.type === stationType);
+        let blueprint = BLUEPRINTS.buildings[stationType];
+        let stationLevel = station.level;
+        let body = '', title = blueprint.name;
+
+        if (stationType === 'recycler') {
+            body = `<div class="station-section"><h3>Reciclaje de Chatarra</h3><div class="offer-item"><span>Tienes ${Math.floor(gameState.resources.piezas_de_chatarra)} piezas</span><button class="btn btn-small" data-action="sell_scrap" ${gameState.resources.piezas_de_chatarra < 1 ? 'disabled':''}>Vender Todo por ${Math.floor(gameState.resources.piezas_de_chatarra * BLUEPRINTS.market.scrap_value)} C</button></div></div>`;
         } else if (stationType === 'marketplace') {
             let systemMarketHTML = Object.keys(BLUEPRINTS.market.system_prices).map(res => {
                 const price = BLUEPRINTS.market.system_prices[res] * 10;
                 return `<li class="offer-item"><span>Sistema Central</span><div class="offer-details"><div class="resource"><span>10</span><i class='bx ${getIcon(res)}'></i><span>${res}</span></div></div><button class="btn btn-small" data-action="buy_system" data-resource="${res}" data-amount="10" data-price="${price}" ${!canAfford({credits: price}) ? 'disabled':''}>Comprar (${price} C)</button></li>`;
             }).join('');
-            body = `<div class="station-section"><h3>Mercado del Sistema (Precios Elevados)</h3><ul class="system-market-list">${systemMarketHTML}</ul></div>
-                    <div class="station-section"><h3>Comercio entre Jugadores (Simulado)</h3><p>Próximamente...</p></div>`;
+            body = `<div class="station-section"><h3>Mercado del Sistema (Precios Elevados)</h3><ul class="system-market-list">${systemMarketHTML}</ul></div><div class="station-section"><h3>Comercio entre Jugadores (Simulado)</h3><p>Próximamente...</p></div>`;
         }
+        
         DOM.gameModal.content.innerHTML = `<div class="game-modal-header"><h2 class="game-modal-title">${title} (Nivel ${stationLevel})</h2><button class="modal-close-btn" data-action="close_modal">&times;</button></div><div class="game-modal-body">${body}</div>`;
         DOM.gameModal.overlay.classList.remove('hidden');
     }
     
-    function buildShip(shipId) {
-        // Lógica para construir naves
-    }
-
-    function buyFromSystem(resource, amount, price) {
-        if (canAfford({ credits: price })) {
-            spendResources({ credits: price });
-            gameState.resources[resource] += amount;
-            renderAll();
-            openGameModal('marketplace'); // Refresca la modal
-        }
-    }
+    const sellScrap = () => { const earnings = Math.floor(gameState.resources.piezas_de_chatarra * BLUEPRINTS.market.scrap_value); gameState.resources.credits += earnings; gameState.resources.piezas_de_chatarra = 0; renderAll(); openGameModal('recycler'); };
 
     class Minigame {
         constructor(canvas, playerImg, enemyImg) {
@@ -236,12 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (this.timer <= 0) this.endGame("Simulación Terminada");
             }, 1000);
 
-            this.touchMoveHandler = (e) => {
-                e.preventDefault();
-                const rect = this.canvas.getBoundingClientRect();
-                const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                this.player.x = Math.max(this.player.width/2, Math.min(this.canvas.width - this.player.width/2, x));
-            };
+            this.touchMoveHandler = (e) => { e.preventDefault(); const rect = this.canvas.getBoundingClientRect(); const x = (e.clientX || e.touches[0].clientX) - rect.left; this.player.x = Math.max(this.player.width/2, Math.min(this.canvas.width - this.player.width/2, x)); };
             this.canvas.addEventListener('mousemove', this.touchMoveHandler);
             this.canvas.addEventListener('touchmove', this.touchMoveHandler, { passive: false });
 
@@ -320,9 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const enemyImg = new Image();
             let loadedImages = 0;
 
-            const startGame = () => {
-                new Minigame(canvas, playerImg, enemyImg);
-            };
+            const startGame = () => { new Minigame(canvas, playerImg, enemyImg); };
 
             playerImg.onload = () => { loadedImages++; if(loadedImages === 2) startGame(); };
             enemyImg.onload = () => { loadedImages++; if(loadedImages === 2) startGame(); };
@@ -366,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (plot.type === 'mine') {
                     const storage = gameState.buildings.find(b => b.type === 'storage_credits');
                     const capacity = storage ? BLUEPRINTS.buildings.storage_credits.upgrades[storage.level - 1].cap : 1000;
-                    if (gameState.resources.credits < capacity) gameState.resources.credits += levelInfo.prod / 60;
+                    if (gameState.resources.credits < capacity) gameState.resources.credits = Math.min(capacity, gameState.resources.credits + levelInfo.prod / 60);
                 } else if (plot.type === 'extractor') {
                     const storage = gameState.buildings.find(b => b.type === 'storage_resources');
                     const capacity = storage ? BLUEPRINTS.buildings.storage_resources.upgrades[storage.level - 1].cap : 500;
@@ -388,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (action === 'upgrade') upgradeBuilding(parseInt(actionButton.dataset.plotId));
                 if (action === 'build') buildBuilding(parseInt(actionButton.dataset.plotId), actionButton.dataset.buildingType);
                 if (action === 'open_station') openGameModal(actionButton.dataset.stationType);
-                if (action === 'close_modal') closeModal();
+                if (action === 'close_modal' || action === 'close_modal_from_game') closeModal();
                 if (action === 'sell_scrap_from_game') { const pieces = parseInt(actionButton.dataset.pieces); const earnings = parseInt(actionButton.dataset.earnings); gameState.resources.credits += earnings; renderAll(); closeModal(); }
                 if (action === 'keep_scrap_from_game') { const pieces = parseInt(actionButton.dataset.pieces); gameState.resources.piezas_de_chatarra += pieces; renderAll(); closeModal(); }
             }

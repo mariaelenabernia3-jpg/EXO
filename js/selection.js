@@ -1,10 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- BASE DE DATOS DE PLANETAS ---
     const PLANET_DATA = {
-        xylos: { id: "xylos", name: "Xylos", normal_resources: ["Biomasa", "Fibra de Carbono", "Polímeros", "Agua"], unique_resources: ["Espora Psiónica", "Cristal de Vida"] },
-        krypton_prime: { id: "krypton_prime", name: "Krypton Prime", normal_resources: ["Gas Helio-3", "Partículas de Plasma", "Hidrógeno", "Amoníaco"], unique_resources: ["Cristal de Kyber", "Fragmento Estelar"] },
-        helion_iv: { id: "helion_iv", name: "Helion IV", normal_resources: ["Hierro", "Titanio", "Cobre", "Silicio"], unique_resources: ["Isótopo Solar", "Magma Solidificado"] },
-        aquea: { id: "aquea", name: "Aquea", normal_resources: ["Agua Pesada", "Litio", "Sal", "Algas"], unique_resources: ["Perla Abisal", "Corazón de Coral"] },
-        cygnus_x1: { id: "cygnus_x1", name: "Cygnus X-1", normal_resources: ["Hielo de Metano", "Nitrógeno", "Xenón", "Minerales Raros"], unique_resources: ["Fragmento de Vacío", "Materia Oscura"] },
+        xylos: { id: "xylos", name: "Xylos", resources: ["Biomasa", "Agua", "Sal"] },
+        krypton_prime: { id: "krypton_prime", name: "Krypton Prime", resources: ["Biomasa", "Hierro", "Hierro"] },
+        helion_iv: { id: "helion_iv", name: "Helion IV", resources: ["Hierro", "Titanio", "Titanio"] },
+        aquea: { id: "aquea", name: "Aquea", resources: ["Agua", "Sal", "Titanio"] },
+        cygnus_x1: { id: "cygnus_x1", name: "Cygnus X-1", resources: ["Nitrógeno", "Nitrógeno", "Nitrógeno"] },
     };
 
     const planetGrid = document.getElementById('planet-selection-grid');
@@ -26,13 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
     });
 
-    const openModal = (htmlContent) => {
-        modal.content.innerHTML = htmlContent;
-        modal.overlay.classList.remove('hidden');
-    };
-    const closeModal = () => {
-        modal.overlay.classList.add('hidden');
-    };
+    const openModal = (htmlContent) => { modal.content.innerHTML = htmlContent; modal.overlay.classList.remove('hidden'); };
+    const closeModal = () => { modal.overlay.classList.add('hidden'); };
 
     planetGrid.addEventListener('click', (e) => {
         const target = e.target;
@@ -45,16 +41,19 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = 'base.html';
         }
         if (target.closest('.card-info-btn')) {
-            let normalResourcesHTML = planetInfo.normal_resources.map(res => `<li><i class='bx bx-chip'></i>${res}</li>`).join('');
-            let uniqueResourcesHTML = planetInfo.unique_resources.map(res => `<li class="resource-unique"><i class='bx bxs-diamond'></i><strong>${res}</strong></li>`).join('');
+            const resourceCounts = planetInfo.resources.reduce((acc, res) => {
+                acc[res] = (acc[res] || 0) + 1;
+                return acc;
+            }, {});
+
+            let resourcesHTML = Object.entries(resourceCounts).map(([res, count]) => `<li><i class='bx bx-chip'></i>${res}${count > 1 ? ` (x${count})` : ''}</li>`).join('');
+            
             const modalHTML = `
                 <button class="modal-close" id="modalCloseButton">&times;</button>
                 <h2 class="modal-title">${planetInfo.name}</h2>
                 <div class="resource-list">
-                    <h3>Recursos Normales</h3>
-                    <ul>${normalResourcesHTML}</ul>
-                    <h3>Recursos Únicos</h3>
-                    <ul>${uniqueResourcesHTML}</ul>
+                    <h3>Recursos Disponibles</h3>
+                    <ul>${resourcesHTML}</ul>
                 </div>`;
             openModal(modalHTML);
         }

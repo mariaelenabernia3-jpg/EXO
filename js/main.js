@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null;
     const userAuthCorner = document.getElementById('user-auth-corner');
-    const modal = { overlay: document.getElementById('modal'), content: document.getElementById('modal-content') };
+    const modal = {
+        overlay: document.getElementById('modal'),
+        content: document.getElementById('modal-content')
+    };
 
     const updateAuthUI = () => {
         if (currentUser) {
@@ -13,7 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleLogin = (form) => {
         const username = form.querySelector('input[type="text"]').value.trim();
-        if (!username) { alert("Por favor, introduce un nombre."); return; }
+        if (!username) {
+            alert("Por favor, introduce un nombre.");
+            return;
+        }
         currentUser = { name: username };
         sessionStorage.setItem('exoUser', JSON.stringify(currentUser));
         updateAuthUI();
@@ -23,15 +29,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleLogout = () => {
         currentUser = null;
         sessionStorage.removeItem('exoUser');
-        sessionStorage.removeItem('exoChosenPlanet');
+        sessionStorage.removeItem('exoChosenPlanet'); // Importante limpiar la elección del planeta
         updateAuthUI();
     };
 
     const handleNewGame = () => {
         if (currentUser) {
+            // Si el jugador ya ha elegido un planeta, va directo a la base.
             if (sessionStorage.getItem('exoChosenPlanet')) {
                 window.location.href = 'base.html';
             } else {
+                // Si no, va a la pantalla de selección.
                 window.location.href = 'selection.html';
             }
         } else {
@@ -42,7 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleChangeName = (form) => {
         const newName = form.querySelector('input[type="text"]').value.trim();
-        if (!newName) return;
+        if (!newName) {
+            return;
+        }
         currentUser.name = newName;
         sessionStorage.setItem('exoUser', JSON.stringify(currentUser));
         updateAuthUI();
@@ -76,7 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.overlay.classList.remove('hidden');
     };
 
-    const closeModal = () => { modal.overlay.classList.add('hidden'); };
+    const closeModal = () => {
+        modal.overlay.classList.add('hidden');
+    };
 
     document.addEventListener('click', (e) => {
         const target = e.target;
@@ -86,12 +98,24 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const action = actionTarget.dataset.action;
             switch (action) {
-                case 'new-game': handleNewGame(); break;
-                case 'options': openModal('options'); break;
-                case 'credits': openModal('credits'); break;
-                case 'auth': openModal('auth'); break;
-                case 'logout': handleLogout(); break;
-                case 'change-name': openModal('change-name'); break;
+                case 'new-game':
+                    handleNewGame();
+                    break;
+                case 'options':
+                    openModal('options');
+                    break;
+                case 'credits':
+                    openModal('credits');
+                    break;
+                case 'auth':
+                    openModal('auth');
+                    break;
+                case 'logout':
+                    handleLogout();
+                    break;
+                case 'change-name':
+                    openModal('change-name');
+                    break;
             }
         }
         if (formSwitcher) {
@@ -107,7 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 registerContainer.classList.add('hidden');
             }
         }
-        if (target.id === 'modalCloseButton' || target === modal.overlay) { closeModal(); }
+        if (target.id === 'modalCloseButton' || target === modal.overlay) {
+            closeModal();
+        }
     });
 
     modal.content.addEventListener('submit', (e) => {
@@ -119,13 +145,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('keydown', (e) => { if (e.key === "Escape" && !modal.overlay.classList.contains('hidden')) { closeModal(); } });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === "Escape" && !modal.overlay.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
     
     const checkSession = () => {
         try {
             const userString = sessionStorage.getItem('exoUser');
-            if (userString) { currentUser = JSON.parse(userString); }
-        } catch (error) { sessionStorage.removeItem('exoUser'); currentUser = null; }
+            if (userString) {
+                currentUser = JSON.parse(userString);
+            }
+        } catch (error) {
+            sessionStorage.removeItem('exoUser');
+            currentUser = null;
+        }
         updateAuthUI();
     };
     checkSession();
