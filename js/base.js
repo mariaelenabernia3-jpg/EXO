@@ -229,12 +229,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     class Minigame {
-        constructor(canvas, playerImg, enemyImg, onGameEndCallback) {
+        constructor(canvas, playerImg, enemyImg) {
             this.canvas = canvas;
             this.ctx = canvas.getContext('2d');
             this.playerImg = playerImg;
             this.enemyImg = enemyImg;
-            this.onGameEnd = onGameEndCallback;
             this.init();
             this.start();
         }
@@ -308,10 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         gameLoop = () => {
             if (this.gameOver) return;
-
             if (this.fireCooldown > 0) this.fireCooldown--;
             if (this.fireCooldown === 0) { this.projectiles.push({x: this.player.x, y: this.player.y - this.player.height/2}); this.fireCooldown = 15; }
-            
             this.projectiles.forEach((p, pi) => { p.y -= 8; if(p.y < 0) this.projectiles.splice(pi, 1); });
             this.enemyProjectiles.forEach((p, pi) => { p.y += 6; if(p.y > this.canvas.height) this.enemyProjectiles.splice(pi, 1); });
             this.enemies.forEach((e, ei) => { e.y += e.speed; if(e.y > this.canvas.height) this.enemies.splice(ei, 1); });
@@ -345,16 +342,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             const canvas = document.getElementById('minigame-canvas');
             if (!canvas) return;
-
             const playerImg = new Image();
             const enemyImg = new Image();
             let loadedImages = 0;
-
             const startGame = () => { new Minigame(canvas, playerImg, enemyImg); };
-
             playerImg.onload = () => { loadedImages++; if(loadedImages === 2) startGame(); };
             enemyImg.onload = () => { loadedImages++; if(loadedImages === 2) startGame(); };
-            
             playerImg.src = '../assets/images/nave.png';
             enemyImg.src = '../assets/images/Enemy.png';
         }, 50);
@@ -394,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
         
         setInterval(() => {
+            if (!gameState.buildings) return;
             gameState.buildings.forEach(plot => {
                 const blueprintName = plot.type.startsWith('extractor') ? 'extractor' : plot.type;
                 const blueprint = BLUEPRINTS.buildings[blueprintName];

@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- BASE DE DATOS DE PLANETAS ---
     const PLANET_DATA = {
         xylos: { id: "xylos", name: "Xylos", resources: ["Biomasa", "Agua", "Sal"] },
         krypton_prime: { id: "krypton_prime", name: "Krypton Prime", resources: ["Biomasa", "Hierro", "Hierro"] },
