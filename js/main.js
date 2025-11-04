@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: user.displayName || user.email.split('@')[0],
                 uid: user.uid
             };
-            userAuthCorner.innerHTML = `<div id="user-info"><i class='bx bxs-user-circle'></i><a href="#" data-action="change-name" title="Cambiar Nombre">${currentUser.name}</a></div><button data-action="logout"><i class='bx bx-log-out'></i> Abdicar</button>`;
+            userAuthCorner.innerHTML = `<div id="user-info"><i class='bx bxs-user-circle'></i><span>${currentUser.name}</span></div><button data-action="logout"><i class='bx bx-log-out'></i> Abdicar</button>`;
         } else {
             currentUser = null;
             userAuthCorner.innerHTML = `<button data-action="auth"><i class='bx bx-user-plus'></i> Conectar</button>`;
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await updateProfile(userCredential.user, {
                 displayName: username
             });
-            // onAuthStateChanged se encargará de actualizar la UI y cerrar la modal
+            // onAuthStateChanged se encargará de actualizar la UI
             closeModal();
         } catch (error) {
             alert(`Error al registrar: ${error.code === 'auth/email-already-in-use' ? 'Ese nombre de presidente ya existe.' : error.message}`);
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // onAuthStateChanged se encargará de actualizar la UI y cerrar la modal
+            // onAuthStateChanged se encargará de actualizar la UI
             closeModal();
         } catch (error) {
             alert(`Error de conexión: Nombre o clave incorrectos.`);
@@ -66,11 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleLogout = () => {
-        if (confirm("¿Estás seguro de que quieres desconectar? Tu progreso se guardará.")) {
+        if (confirm("¿Estás seguro de que quieres desconectar?")) {
             signOut(auth);
         }
     };
-
+    
     onAuthStateChanged(auth, user => {
         updateAuthUI(user);
     });
@@ -78,18 +78,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleNewGame = async () => {
         if (currentUser) {
             const gameDocRef = doc(db, "games", currentUser.uid);
-            const docSnap = await getDoc(gameDocRef);
-            if (docSnap.exists()) {
-                window.location.href = 'base.html';
-            } else {
-                window.location.href = 'selection.html';
+            try {
+                const docSnap = await getDoc(gameDocRef);
+                if (docSnap.exists()) {
+                    // Si ya tiene una partida, va a la base
+                    window.location.href = 'base.html';
+                } else {
+                    // Si no tiene partida, va a la selección de planeta
+                    window.location.href = 'selection.html';
+                }
+            } catch (error) {
+                console.error("Error al verificar la partida:", error);
+                alert("Hubo un error al conectar con el servidor. Inténtalo de nuevo.");
             }
         } else {
             alert('Debes conectarte para empezar a gobernar.');
             openModal('auth');
         }
     };
-
+    
     const openModal = (type) => {
         let contentHTML = '';
         const closeButton = `<button class="modal-close" id="modalCloseButton">&times;</button>`;
@@ -103,15 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <form id="registerFormModal" class="auth-form"><h1>Crear Perfil</h1><div class="input-box"><input type="text" id="reg-username" placeholder="Elige tu Nombre" required><i class='bx bxs-user-circle'></i></div><div class="input-box"><input type="password" id="reg-password" placeholder="Define una Clave (mín. 6 caracteres)" required><i class='bx bxs-key'></i></div><button type="submit" class="btn">Registrar</button><div class="form-switcher"><p>¿Ya tienes un Perfil? <a href="#" data-form-switcher="login">Conectar</a></p></div></form>
                     </div>`;
                 break;
-            case 'change-name':
-                contentHTML = `${closeButton}<h2 class="modal-title">Cambiar Nombre</h2><p class="modal-body">Esta función no está disponible en la versión actual.</p>`;
-                break;
             case 'options':
                 contentHTML = `${closeButton}<h2 class="modal-title">Opciones del Juego</h2><div class="modal-body"><p>Ajustes de sonido, gráficos y jugabilidad estarán disponibles aquí.</p></div>`;
                 break;
             case 'credits':
                 contentHTML = `${closeButton}<h2 class="modal-title">Créditos</h2><div class="modal-body"><p>Juego creado por:</p><p class="credits-studio">DZM Studios</p></div>`;
                 break;
+            case 'change-name':
+                 contentHTML = `${closeButton}<h2 class="modal-title">Cambiar Nombre</h2><div class="modal-body"><p>Esta función se ha deshabilitado para mantener la integridad de las partidas guardadas en la nube.</p></div>`;
+                 break;
         }
         modal.content.innerHTML = contentHTML;
         modal.overlay.classList.remove('hidden');
