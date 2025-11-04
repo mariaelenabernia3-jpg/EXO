@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- BLUEPRINTS ---
-    const ICONS = { credits: 'bxs-coin-stack', iron: 'bxs-cube-alt', titanium: 'bxs-layer', silicio: 'bxs-chip', agua: 'bxs-droplet', biomasa: 'bxs-leaf', 'gas_helio-3': 'bxs-cloud', 'fibra_de_carbono': 'bxs-grid-alt', polímeros: 'bxs-vial', hidrógeno: 'bxs-flame', amoníaco: 'bxs-bong', 'agua_pesada': 'bxs-battery', litio: 'bxs-car-battery', sal: 'bxs-invader', algas: 'bxs-bug-alt', 'hielo_de_metano': 'bxs-cube', nitrógeno: 'bxs-wind', xenón: 'bxs-meteor', 'minerales_raros': 'bxs-component', piezas_de_chatarra: 'bxs-wrench', default: 'bxs-diamond' };
+    // --- BLUEPRINTS (Definiciones de Edificios, Naves y Precios) ---
+    const ICONS = { credits: 'bxs-coin-stack', iron: 'bxs-cube-alt', titanium: 'bxs-layer', silicio: 'bxs-chip', piezas_de_chatarra: 'bxs-wrench', default: 'bxs-package' };
     const BLUEPRINTS = {
         buildings: {
             mine: { name: "Mina de Oro", upgrades: [ { level: 1, cost: {}, prod: 20 }, { level: 2, cost: { credits: 400 }, prod: 50 }, { level: 3, cost: { credits: 1200, iron: 20 }, prod: 120 } ] },
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
             destroyer: { name: "Destructor", unlocked: 2, cost: { titanium: 100, iron: 150 }, space: 5 }
         },
         market: {
-            system_prices: { iron: 15, silicio: 25, titanium: 50 },
+            system_prices: { iron: 15, silicio: 25 },
             scrap_value: 15
         }
     };
@@ -53,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const creditStorage = gameState.buildings.find(b => b.type === 'storage_credits');
         const creditCap = creditStorage ? BLUEPRINTS.buildings.storage_credits.upgrades[creditStorage.level - 1].cap : 1000;
         html += `<div class="resource-item" title="Créditos"><i class='bx ${getIcon('credits')}'></i><span>${Math.floor(gameState.resources.credits)} / ${creditCap}</span></div>`;
-
         const resourceStorage = gameState.buildings.find(b => b.type === 'storage_resources');
         const resourceCap = resourceStorage ? BLUEPRINTS.buildings.storage_resources.upgrades[resourceStorage.level - 1].cap : 500;
         let totalResources = 0;
@@ -65,7 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         html += `<div class="resource-item" title="Almacén de Recursos"><i class='bx bxs-box'></i><span>${Math.floor(totalResources)} / ${resourceCap}</span></div>`;
-        
         Object.keys(otherResources).forEach(res => {
              html += `<div class="resource-item" title="${res}"><i class='bx ${getIcon(res)}'></i><span>${Math.floor(otherResources[res])}</span></div>`;
         });
@@ -248,7 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.projectiles = [];
             this.enemies = [];
             this.enemyProjectiles = [];
-            
             this.scoreUI = DOM.gameModal.content.querySelector('#mg-score');
             this.timerUI = DOM.gameModal.content.querySelector('#mg-timer');
         }
@@ -305,10 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         gameLoop = () => {
             if (this.gameOver) return;
-
             if (this.fireCooldown > 0) this.fireCooldown--;
             if (this.fireCooldown === 0) { this.projectiles.push({x: this.player.x, y: this.player.y - this.player.height/2}); this.fireCooldown = 15; }
-            
             this.projectiles.forEach((p, pi) => { p.y -= 8; if(p.y < 0) this.projectiles.splice(pi, 1); });
             this.enemyProjectiles.forEach((p, pi) => { p.y += 6; if(p.y > this.canvas.height) this.enemyProjectiles.splice(pi, 1); });
             this.enemies.forEach((e, ei) => { e.y += e.speed; if(e.y > this.canvas.height) this.enemies.splice(ei, 1); });
@@ -342,16 +337,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             const canvas = document.getElementById('minigame-canvas');
             if (!canvas) return;
-
             const playerImg = new Image();
             const enemyImg = new Image();
             let loadedImages = 0;
-
             const startGame = () => { new Minigame(canvas, playerImg, enemyImg); };
-
             playerImg.onload = () => { loadedImages++; if(loadedImages === 2) startGame(); };
             enemyImg.onload = () => { loadedImages++; if(loadedImages === 2) startGame(); };
-            
             playerImg.src = '../assets/images/nave.png';
             enemyImg.src = '../assets/images/Enemy.png';
         }, 50);
@@ -370,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedData) {
             gameState = savedData;
         } else {
+            // Si no hay partida guardada, se crea una nueva (simplificado)
             gameState = {
                 player: player,
                 planetName: "Colonia Alpha",
