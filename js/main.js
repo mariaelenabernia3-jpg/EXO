@@ -21,25 +21,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         currentUser = { name: username };
-        sessionStorage.setItem('exoUser', JSON.stringify(currentUser));
+        localStorage.setItem('exoUser', JSON.stringify(currentUser));
         updateAuthUI();
         closeModal();
     };
 
     const handleLogout = () => {
-        currentUser = null;
-        sessionStorage.removeItem('exoUser');
-        sessionStorage.removeItem('exoChosenPlanet'); // Importante limpiar la elección del planeta
-        updateAuthUI();
+        if (currentUser && confirm("¿Estás seguro de que quieres abdicar? Se borrará todo tu progreso guardado.")) {
+            localStorage.removeItem('exoSaveData_' + currentUser.name);
+            currentUser = null;
+            localStorage.removeItem('exoUser');
+            updateAuthUI();
+        }
     };
 
     const handleNewGame = () => {
         if (currentUser) {
-            // Si el jugador ya ha elegido un planeta, va directo a la base.
-            if (sessionStorage.getItem('exoChosenPlanet')) {
+            const savedGame = localStorage.getItem('exoSaveData_' + currentUser.name);
+            // Si ya existe una partida guardada (lo que implica que ya se eligió un planeta), va directo a la base.
+            if (savedGame) {
                 window.location.href = 'base.html';
             } else {
-                // Si no, va a la pantalla de selección.
+                // Si no hay partida, va a la pantalla de selección.
                 window.location.href = 'selection.html';
             }
         } else {
@@ -50,11 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleChangeName = (form) => {
         const newName = form.querySelector('input[type="text"]').value.trim();
-        if (!newName) {
-            return;
+        if (!newName || newName === currentUser.name) return;
+
+        // Mueve la partida guardada al nuevo nombre de usuario
+        const oldSaveData = localStorage.getItem('exoSaveData_' + currentUser.name);
+        if (oldSaveData) {
+            localStorage.setItem('exoSaveData_' + newName, oldSaveData);
+            localStorage.removeItem('exoSaveData_' + currentUser.name);
         }
+
         currentUser.name = newName;
-        sessionStorage.setItem('exoUser', JSON.stringify(currentUser));
+        localStorage.setItem('exoUser', JSON.stringify(currentUser));
         updateAuthUI();
         closeModal();
     };
@@ -153,12 +162,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const checkSession = () => {
         try {
-            const userString = sessionStorage.getItem('exoUser');
+            const userString = localStorage.getItem('exoUser');
             if (userString) {
                 currentUser = JSON.parse(userString);
             }
         } catch (error) {
-            sessionStorage.removeItem('exoUser');
+            localStorage.removeItem('exoUser');
             currentUser = null;
         }
         updateAuthUI();

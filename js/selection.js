@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- BASE DE DATOS DE PLANETAS ---
     const PLANET_DATA = {
         xylos: { id: "xylos", name: "Xylos", resources: ["Biomasa", "Agua", "Sal"] },
         krypton_prime: { id: "krypton_prime", name: "Krypton Prime", resources: ["Biomasa", "Hierro", "Hierro"] },
@@ -11,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const planetGrid = document.getElementById('planet-selection-grid');
     const modal = { overlay: document.getElementById('info-modal'), content: document.getElementById('info-modal').querySelector('.modal-content') };
 
-    if (!sessionStorage.getItem('exoUser')) {
+    if (!localStorage.getItem('exoUser')) {
         alert("Error de sesión. Debes conectarte primero.");
         window.location.href = 'menu.html';
         return;
@@ -37,7 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const planetId = card.dataset.planetId;
         const planetInfo = PLANET_DATA[planetId];
         if (target.closest('.card-button')) {
-            sessionStorage.setItem('exoChosenPlanet', JSON.stringify(planetInfo));
+            const user = JSON.parse(localStorage.getItem('exoUser'));
+            const saveData = {
+                chosenPlanet: planetInfo
+            };
+            localStorage.setItem('exoSaveData_' + user.name, JSON.stringify(saveData));
             window.location.href = 'base.html';
         }
         if (target.closest('.card-info-btn')) {
