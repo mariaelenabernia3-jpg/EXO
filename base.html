@@ -18,7 +18,6 @@
         <footer class="footer-bar">
             <div id="planet-name-display" class="planet-name"></div>
             <div class="footer-buttons">
-                <!-- BOTÓN NUEVO PARA EL SIMULADOR -->
                 <button class="hud-button" data-action="open_station" data-station-type="simulator" title="Simulador de Combate">
                     <i class='bx bxs-joystick-alt'></i>
                     <span>Simulador</span>
@@ -33,6 +32,9 @@
     <div id="game-modal-overlay" class="game-modal-overlay hidden">
         <div id="game-modal-content" class="game-modal-content"></div>
     </div>
-    <script src="../js/base.js"></script>
+
+    <!-- Scripts de Firebase y de la página -->
+    <script type="module" src="../js/firebase-init.js"></script>
+    <script type="module" src="../js/base.js"></script>
 </body>
 </html>
